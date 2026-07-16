@@ -1,34 +1,30 @@
 # SleepScope
 
-SleepScope is a React Native prototype that estimates behavioral sleep states using smartphone motion (accelerometer) and environmental audio (microphone).
+SleepScope is a React Native prototype for collecting overnight smartphone sensor data. It records accelerometer, gyroscope, microphone sound level (dB), and user-logged wake-up events into a timestamped CSV for later analysis.
 
-The app records 1 Hz sensor telemetry, downsamples it into 2-minute epochs, and uses the Groq API to classify each epoch into one of three behavioral states:
 
-- Quiet Sleep
-- Restless
-- Awake
-
-> **Note:** SleepScope estimates behavioral activity only. It does not detect physiological sleep stages such as REM, light sleep, or deep sleep.
 
 ---
 
 # How It Works
 
-1. **Data Collection**
-   - Records accelerometer movement (Delta X, Y, Z) and peak microphone level (dBFS) once per second.
+1. **Session Setup**
+   - The participant enters a unique participant ID before starting a recording.
+   - This ID is stored in the exported CSV metadata.
 
-2. **Edge Compression**
-   - Compresses every 120 seconds of telemetry into a single summary row using peak detection.
-   - This greatly reduces API token usage while preserving meaningful activity patterns.
+2. **Data Collection**
+   - Records accelerometer (X, Y, Z), gyroscope (X, Y, Z), and microphone level (dBFS) once per second.
 
-3. **AI Classification**
-   - After the recording ends, the compressed CSV is sent to the Groq API.
-   - Llama 3.3 70B classifies every 2-minute epoch as Quiet Sleep, Restless, or Awake using a deterministic prompt.
+3. **Wake-Up Logging**
+   - Participants can log wake-up events during the night using predefined reasons or custom notes.
+   - Wake-up events are written into the CSV alongside sensor data.
 
-4. **Local Processing**
-   - The app calculates durations, percentages, and the sleep timeline locally.
-   - Results are exported as JSON through the iOS Share Sheet.
-   - If AI classification fails, the raw CSV is exported instead.
+4. **Session Notes**
+   - At the end of the recording, optional notes can be added describing anything remembered about the night.
+
+5. **CSV Export**
+   - The completed session is exported as a CSV using the native iOS/Android Share Sheet.
+   - Audio recordings are deleted after extracting microphone levels, so only the CSV is retained.
 
 ---
 
@@ -61,45 +57,6 @@ cd sleepscope-prototype
 
 npm install
 ```
-
----
-
-## API Key Setup
-
-SleepScope uses the Groq API for AI classification.
-
-The Groq free tier has per-account rate limits. Since multiple team members may be testing at the same time, everyone should generate their own free API key.
-
-If you have trouble creating one, contact the project owner.
-
-### 1. Create a Groq account
-
-Visit:
-
-https://console.groq.com
-
-Sign in using your Google account.
-
-### 2. Generate an API key
-
-Navigate to:
-
-**API Keys → Create API Key**
-
-### 3. Create a `.env` file
-
-In the project root, create a file named:
-
-```
-.env
-```
-
-Add your API key:
-
-```env
-EXPO_PUBLIC_GROQ_KEY=your_api_key_here
-```
-
 ---
 
 ## Running the App
@@ -166,23 +123,48 @@ Configure:
 
 ---
 
+# CSV Format
+
+Each recording produces a timestamped CSV containing one row per second.
+
+Columns:
+
+| Column | Description |
+|---------|-------------|
+| Timestamp | ISO-8601 timestamp |
+| Accel_X, Accel_Y, Accel_Z | Accelerometer readings |
+| Gyro_X, Gyro_Y, Gyro_Z | Gyroscope readings |
+| dB | Microphone level (dBFS) |
+| Event | Wake-up event logged by the participant (blank otherwise) |
+
+The first few lines of the CSV begin with `#` and contain session metadata, including:
+
+- participant ID
+- session start time
+- optional session notes
+
+## Reliability
+
+Sensor data is automatically written to disk every 30 seconds during recording. If the app unexpectedly closes, at most the most recent 30 seconds of data may be lost.
+
+---
+
 # Exporting Results
 
 When you wake up:
 
 1. Tap the screen to exit blackout mode.
-2. Tap **Stop & Export Metrics**.
+2. Tap **Stop & Export CSV**.
+3. Optionally enter session notes.
+4. Tap **Save & Export CSV**.
 
 The app will:
+- Stop sensor recording.
+- Save the final CSV to local storage.
+- Remove the temporary audio recording (only microphone levels are retained).
+- Open the native Share Sheet so the CSV can be saved or shared.
 
-1. Generate the compressed CSV.
-2. Send it to Groq for classification.
-3. Calculate sleep statistics locally.
-4. Display the session summary.
-5. Open the native Share Sheet.
-
-Upload the exported JSON file to the team Google Drive:
+Upload the exported CSV to the team Google Drive:
 
 https://drive.google.com/drive/folders/1STzX1D45tIOndZys6E-O5Zn6tXZO1KXL?usp=share_link
 
-If AI classification fails because of a network or rate-limit issue, the app automatically exports the raw CSV instead. No data is lost, and the CSV can be classified later using the same prompt included in the source code.

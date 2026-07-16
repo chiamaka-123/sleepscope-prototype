@@ -1,3 +1,4 @@
+import { Feather } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -435,19 +436,22 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Log Wake-Up</Text>
-          <Text style={styles.subtitle}>Why did you wake up?</Text>
+          <Text style={styles.subtitle}>What caused the disruption?</Text>
         </View>
 
         <View style={styles.setupCard}>
           <TouchableOpacity style={styles.optionButton} onPress={() => saveWakeUp('bathroom')}>
+            <Feather name="log-out" size={18} color="#e2e8f0" />
             <Text style={styles.optionText}>Bathroom / Out of Bed</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.optionButton} onPress={() => saveWakeUp('awake_in_bed')}>
+            <Feather name="eye" size={18} color="#e2e8f0" />
             <Text style={styles.optionText}>Awake in Bed</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.optionButton} onPress={() => saveWakeUp('noise')}>
+            <Feather name="volume-x" size={18} color="#e2e8f0" />
             <Text style={styles.optionText}>Noise / Disturbance</Text>
           </TouchableOpacity>
 
@@ -457,9 +461,10 @@ export default function App() {
             value={logNote}
             onChangeText={setLogNote}
             placeholder="e.g. bad dream"
-            placeholderTextColor="#6c6c70"
+            placeholderTextColor="#64748b"
           />
-          <TouchableOpacity style={styles.optionButton} onPress={() => saveWakeUp(logNote)}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => saveWakeUp(logNote)}>
+            <Feather name="check" size={18} color="#e2e8f0" />
             <Text style={styles.optionText}>Save Note</Text>
           </TouchableOpacity>
         </View>
@@ -476,24 +481,30 @@ export default function App() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.tipsCard}>
+          <View style={styles.iconCircle}>
+            <Feather name="info" size={24} color="#818cf8" />
+          </View>
           <Text style={styles.tipsTitle}>Before You Start</Text>
 
-          <Text style={styles.tipText}>
-            1. Start the app BEFORE you get into bed, so it captures the time you spend lying awake.
-          </Text>
-          <Text style={styles.tipText}>
-            2. Place the phone flat on the mattress next to you.
-          </Text>
-          <Text style={styles.tipText}>
-            3. Keep the phone plugged in and leave the app open all night.
-          </Text>
+          <View style={styles.tipRow}>
+            <Feather name="clock" size={20} color="#94a3b8" />
+            <Text style={styles.tipText}>Start the app BEFORE you get into bed, so it captures the time you spend lying awake.</Text>
+          </View>
+          <View style={styles.tipRow}>
+            <Feather name="smartphone" size={20} color="#94a3b8" />
+            <Text style={styles.tipText}>Place the phone flat on the mattress next to you.</Text>
+          </View>
+          <View style={styles.tipRow}>
+            <Feather name="battery-charging" size={20} color="#94a3b8" />
+            <Text style={styles.tipText}>Keep the phone plugged in and leave the app open all night.</Text>
+          </View>
 
-          <TouchableOpacity style={styles.tipsStartButton} onPress={() => startFromTips(false)}>
+          <TouchableOpacity style={[styles.button, styles.startButton, { width: '100%', alignSelf: 'center' }]} onPress={() => startFromTips(false)}>
             <Text style={styles.buttonText}>Got It - Start Session</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.tipsHideButton} onPress={() => startFromTips(true)}>
-            <Text style={styles.tipsHideText}>{"Don't Show Tips Again"}</Text>
+            <Text style={styles.tipsHideText}>Don't Show Tips Again</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -508,7 +519,7 @@ export default function App() {
         <SafeAreaView style={styles.notesContainer}>
           <View style={styles.header}>
             <Text style={styles.title}>Session Notes</Text>
-            <Text style={styles.subtitle}>Add anything you remember (optional)</Text>
+            <Text style={styles.subtitle}>Add anything you remember (optional) </Text>
           </View>
 
           <View style={styles.setupCard}>
@@ -517,13 +528,14 @@ export default function App() {
               style={styles.notesInput}
               value={sessionNotes}
               onChangeText={setSessionNotes}
-              placeholder="dog barked"
-              placeholderTextColor="#6c6c70"
+              placeholder="e.g. woke up feeling extremely rested, dog barked around 4AM..."
+              placeholderTextColor="#64748b"
               multiline={true}
             />
           </View>
 
           <TouchableOpacity style={[styles.button, styles.startButton]} onPress={saveNotesAndExport}>
+            <Feather name="share" size={20} color="white" />
             <Text style={styles.buttonText}>Save & Export CSV</Text>
           </TouchableOpacity>
         </SafeAreaView>
@@ -532,11 +544,15 @@ export default function App() {
   }
 
   // main screen
-  let statusText = 'Data Logger';
+  let statusText = 'Logs your sleep data';
+  let StatusIcon = <Feather name="database" size={16} color="#94a3b8" style={{ marginRight: 6 }} />;
+
   if (isRecording) {
     statusText = 'Logging Active...';
+    StatusIcon = <Feather name="activity" size={16} color="#10b981" style={{ marginRight: 6 }} />;
   } else if (isFinishing) {
     statusText = 'Saving Session...';
+    StatusIcon = <Feather name="loader" size={16} color="#f59e0b" style={{ marginRight: 6 }} />;
   }
 
   let buttonLabel = 'Initiate Sleep Session';
@@ -549,8 +565,14 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>SleepScope</Text>
-        <Text style={styles.subtitle}>{statusText}</Text>
+        <View style={styles.titleRow}>
+          <Feather name="moon" size={32} color="#818cf8" />
+          <Text style={styles.title}>SleepScope</Text>
+        </View>
+        <View style={styles.statusBadge}>
+          {StatusIcon}
+          <Text style={styles.subtitle}>{statusText}</Text>
+        </View>
       </View>
 
       {!isRecording && !isFinishing && (
@@ -561,7 +583,7 @@ export default function App() {
             value={participantId}
             onChangeText={setParticipantId}
             placeholder="e.g. P01"
-            placeholderTextColor="#6c6c70"
+            placeholderTextColor="#64748b"
             autoCapitalize="characters"
             autoCorrect={false}
           />
@@ -577,17 +599,21 @@ export default function App() {
         onPress={isRecording ? stopTracking : handleInitiatePress}
         disabled={isFinishing}
       >
+        {!isRecording && !isFinishing && <Feather name="play" size={20} color="white" />}
+        {isRecording && <Feather name="square" size={20} color="#f8fafc" />}
         <Text style={styles.buttonText}>{buttonLabel}</Text>
       </TouchableOpacity>
 
       {isRecording && (
         <TouchableOpacity style={styles.wakeButton} onPress={() => setShowLogMenu(true)}>
+          <Feather name="edit-3" size={18} color="#818cf8" />
           <Text style={styles.wakeButtonText}>Log Wake-Up ({wakeUpCount})</Text>
         </TouchableOpacity>
       )}
 
       {isRecording && (
         <TouchableOpacity style={styles.nightModeButton} onPress={() => setIsBlackout(true)}>
+          <Feather name="eye-off" size={16} color="#94a3b8" style={{ marginRight: 6 }} />
           <Text style={styles.nightModeText}>Re-engage OLED Blackout</Text>
         </TouchableOpacity>
       )}
@@ -607,7 +633,7 @@ export default function App() {
           </View>
 
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Start / End</Text>
+            <Text style={styles.statLabel}>Time Window</Text>
             <Text style={styles.statValue}>{lastSession.startClock} - {lastSession.endClock}</Text>
           </View>
 
@@ -619,53 +645,63 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1c1c1e', alignItems: 'center', justifyContent: 'center' },
-  notesContainer: { flex: 1, backgroundColor: '#1c1c1e', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 60 },
-
+  container: { flex: 1, backgroundColor: '#0f172a', alignItems: 'center', justifyContent: 'center' },
+  notesContainer: { flex: 1, backgroundColor: '#0f172a', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 60 },
   blackoutContainer: { flex: 1, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center' },
 
   header: { marginBottom: 40, alignItems: 'center' },
-  title: { fontSize: 36, fontWeight: 'bold', color: '#ffffff', letterSpacing: 0.5 },
-  subtitle: { fontSize: 16, color: '#8e8e93', marginTop: 8, fontWeight: '500' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  title: { fontSize: 36, fontWeight: '800', color: '#f8fafc', letterSpacing: 0.5, marginLeft: 8 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1e293b', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#334155' },
+  subtitle: { fontSize: 14, color: '#e2e8f0', fontWeight: '600' },
   hiddenText: { color: '#1a1a1a', fontSize: 12, fontWeight: '600' },
 
-  setupCard: { width: '85%', padding: 20, backgroundColor: '#2c2c2e', borderRadius: 15, marginBottom: 30 },
-  setupLabel: { color: '#e5e5ea', fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 8 },
+  // Cards mapped to Tailwind slate-900 with slate-800 borders
+  setupCard: { width: '85%', padding: 24, backgroundColor: '#1e293b', borderRadius: 20, borderWidth: 1, borderColor: '#334155', marginBottom: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 15 },
+  setupLabel: { color: '#cbd5e1', fontSize: 14, fontWeight: '700', marginBottom: 10, marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   input: {
-    backgroundColor: '#1c1c1e', color: '#ffffff', fontSize: 16, paddingVertical: 12,
-    paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#48484a',
+    backgroundColor: '#0f172a', color: '#f8fafc', fontSize: 16, paddingVertical: 14,
+    paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: '#475569',
   },
   notesInput: {
-    backgroundColor: '#1c1c1e', color: '#ffffff', fontSize: 16, paddingVertical: 12,
-    paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#48484a',
+    backgroundColor: '#0f172a', color: '#f8fafc', fontSize: 16, paddingVertical: 14,
+    paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: '#475569',
     height: 120, textAlignVertical: 'top',
   },
 
-  tipsCard: { width: '85%', padding: 25, backgroundColor: '#2c2c2e', borderRadius: 15 },
-  tipsTitle: { color: '#ffffff', fontSize: 22, fontWeight: 'bold', marginBottom: 18, textAlign: 'center' },
-  tipText: { color: '#e5e5ea', fontSize: 16, marginBottom: 14, lineHeight: 22 },
-  tipsStartButton: { backgroundColor: '#34c759', paddingVertical: 18, borderRadius: 30, alignItems: 'center', marginTop: 10 },
-  tipsHideButton: { paddingVertical: 14, alignItems: 'center', marginTop: 6 },
-  tipsHideText: { color: '#8e8e93', fontSize: 15, fontWeight: '600' },
+  featureBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.2)', marginTop: 20 },
+  featureIconWrap: { backgroundColor: 'rgba(245, 158, 11, 0.2)', padding: 8, borderRadius: 10, marginRight: 12 },
+  featureTextWrap: { flex: 1 },
+  featureTitle: { color: '#fbbf24', fontWeight: '700', fontSize: 15, marginBottom: 2 },
+  featureSub: { color: '#cbd5e1', fontSize: 12 },
 
-  button: { paddingVertical: 22, paddingHorizontal: 44, borderRadius: 35, width: '80%', alignItems: 'center' },
-  startButton: { backgroundColor: '#34c759' },
-  stopButton: { backgroundColor: '#ff3b30' },
+  tipsCard: { width: '85%', padding: 28, backgroundColor: '#1e293b', borderRadius: 20, borderWidth: 1, borderColor: '#334155' },
+  iconCircle: { alignSelf: 'center', backgroundColor: 'rgba(99, 102, 241, 0.1)', padding: 16, borderRadius: 50, marginBottom: 16 },
+  tipsTitle: { color: '#f8fafc', fontSize: 24, fontWeight: '800', marginBottom: 24, textAlign: 'center' },
+  tipRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16, paddingRight: 10 },
+  tipText: { color: '#cbd5e1', fontSize: 15, marginLeft: 12, lineHeight: 22 },
+  tipsHideButton: { paddingVertical: 16, alignItems: 'center', marginTop: 10 },
+  tipsHideText: { color: '#64748b', fontSize: 15, fontWeight: '600' },
+
+  button: { paddingVertical: 18, paddingHorizontal: 32, borderRadius: 16, width: '85%', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 },
+  startButton: { backgroundColor: '#4f46e5', shadowColor: '#4f46e5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 12 },
+  stopButton: { backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#ef4444' },
+  secondaryButton: { backgroundColor: '#334155', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 12, flexDirection: 'row', justifyContent: 'center', gap: 8 },
   buttonText: { color: 'white', fontSize: 18, fontWeight: '700' },
 
-  wakeButton: { marginTop: 25, paddingVertical: 14, paddingHorizontal: 30, borderRadius: 25, borderWidth: 1, borderColor: '#0a84ff' },
-  wakeButtonText: { color: '#0a84ff', fontSize: 16, fontWeight: '700' },
+  wakeButton: { marginTop: 30, paddingVertical: 16, paddingHorizontal: 32, borderRadius: 16, borderWidth: 1, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', flexDirection: 'row', alignItems: 'center', gap: 10 },
+  wakeButtonText: { color: '#818cf8', fontSize: 16, fontWeight: '700' },
 
-  optionButton: { backgroundColor: '#0a84ff', paddingVertical: 15, borderRadius: 12, alignItems: 'center', marginTop: 10 },
-  optionText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  optionButton: { backgroundColor: '#334155', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 12, flexDirection: 'row', justifyContent: 'center', gap: 10 },
+  optionText: { color: '#f8fafc', fontSize: 16, fontWeight: '600' },
 
-  nightModeButton: { marginTop: 20, padding: 15 },
-  nightModeText: { color: '#0a84ff', fontSize: 16, fontWeight: '600' },
+  nightModeButton: { marginTop: 24, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  nightModeText: { color: '#94a3b8', fontSize: 15, fontWeight: '600' },
 
-  summaryCard: { marginTop: 40, padding: 20, backgroundColor: '#2c2c2e', borderRadius: 15, width: '85%' },
-  summaryTitle: { color: '#ffffff', fontSize: 18, fontWeight: 'bold', marginBottom: 14, textAlign: 'center' },
-  statRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#3a3a3c' },
-  statLabel: { color: '#8e8e93', fontSize: 15, fontWeight: '500' },
-  statValue: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  summaryFile: { color: '#8e8e93', fontSize: 12, marginTop: 12, textAlign: 'center' },
+  summaryCard: { marginTop: 40, padding: 24, backgroundColor: '#1e293b', borderRadius: 20, borderWidth: 1, borderColor: '#334155', width: '85%' },
+  summaryTitle: { color: '#f8fafc', fontSize: 18, fontWeight: '800', marginBottom: 18, textAlign: 'center' },
+  statRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#334155' },
+  statLabel: { color: '#94a3b8', fontSize: 15, fontWeight: '600' },
+  statValue: { color: '#f8fafc', fontSize: 16, fontWeight: '700' },
+  summaryFile: { color: '#64748b', fontSize: 12, marginTop: 16, textAlign: 'center', fontVariant: ['tabular-nums'] },
 });
