@@ -25,26 +25,6 @@ const formatClock = (isoString: string): string => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-// old groq labeling helper - we do labeling in python on the desktop now,
-// keeping this here in case we ever want it back
-//
-// // helper function to handle AI rate limiting
-// const fetchWithRetry = async (endpoint: string, options: any, maxRetries = 3) => {
-//   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-//     const response = await fetch(endpoint, options);
-//
-//     if (response.status === 429) {
-//       console.warn(`Rate limited! Retrying in ${attempt * 15} seconds...`);
-//       await new Promise(resolve => setTimeout(resolve, attempt * 15000));
-//       continue;
-//     }
-//
-//     if (!response.ok) throw new Error(`API failed with status: ${response.status}`);
-//     return response;
-//   }
-//   throw new Error("Max retries reached. Server is too busy.");
-// };
-
 export default function App() {
   // prevents the phone screen from locking during the overnight session
   useKeepAwake();
@@ -269,92 +249,6 @@ export default function App() {
       // final save to catch the last rows
       await saveToPhone();
 
-      // old groq post-processing that used to label each row here. Moved to the
-      // python desktop side, keeping the original code for reference
-      //
-      //       const csvString = dataLog.current.join('\n');
-      //       let finalExportText = "";
-      //       let exportFileName = "";
-      //
-      //       // AI post-processing
-      //       const API_KEY = process.env.EXPO_PUBLIC_GROQ_KEY;
-      //       const endpoint = `https://api.groq.com/openai/v1/chat/completions`;
-      //
-      //       try {
-      //         const aiResponse = await fetchWithRetry(endpoint, {
-      //           method: 'POST',
-      //           headers: {
-      //             'Content-Type': 'application/json',
-      //             'Authorization': `Bearer ${API_KEY}`
-      //           },
-      //           body: JSON.stringify({
-      //             model: "llama-3.3-70b-versatile",
-      //             response_format: { type: "json_object" },
-      //             messages: [
-      //               {
-      //                 role: "system",
-      //                 content: "You are a behavioral sleep classifier. The input is CSV telemetry from a smartphone. Each row represents one independent 2-minute epoch. Classify EVERY row independently as exactly one of: Quiet Sleep, Restless, or Awake.\n\nGuidelines:\n- Quiet Sleep: very little movement across all axes (low Delta XYZ) and peak audio below -45 dBFS.\n- Restless: moderate movement variance, occasional movement spikes, or isolated audio events between -45 and -30 dBFS.\n- Awake: high movement across multiple axes, very high movement variance, or peak audio louder than -30 dBFS.\n\nRules:\n- Use only the telemetry provided.\n- Do not infer REM sleep, deep sleep, light sleep, or medical conditions.\n- Preserve the timestamps exactly as provided.\n- Return one classification for every input row.\n- Do not omit or merge rows.\n\nReturn ONLY a JSON object containing a single key called 'epochs' that holds an array of objects. Each object must have 'timestamp' and 'state'."
-      //               },
-      //               {
-      //                 role: "user",
-      //                 content: csvString
-      //               }
-      //             ]
-      //           })
-      //         });
-      //
-      //         const jsonResponse = await aiResponse.json();
-      //
-      //         const rawAiText = jsonResponse.choices[0].message.content;
-      //         const parsedData = JSON.parse(rawAiText);
-      //         const aiEpochs = parsedData.epochs;
-      //
-      //         // multiply array length by 120 seconds to get total duration
-      //         let calcTotal = aiEpochs.length * 120;
-      //         let calcAwake = 0;
-      //         let calcRestless = 0;
-      //         let calcQuiet = 0;
-      //         const timelineArray: { time: string; state: string }[] = [];
-      //         let lastState = null;
-      //
-      //         for (const epoch of aiEpochs) {
-      //           if (epoch.state === 'Awake') calcAwake += 120;
-      //           else if (epoch.state === 'Restless') calcRestless += 120;
-      //           else if (epoch.state === 'Quiet Sleep') calcQuiet += 120;
-      //
-      //           // build a merged timeline for the UI (only log when the state changes)
-      //           if (epoch.state !== lastState) {
-      //             const timeObj = new Date(epoch.timestamp);
-      //             const formattedTime = timeObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      //
-      //             timelineArray.push({
-      //               time: formattedTime,
-      //               state: epoch.state
-      //             });
-      //             lastState = epoch.state;
-      //           }
-      //         }
-      //
-      //         setSummary({
-      //           total: calcTotal,
-      //           awake: calcAwake,
-      //           restless: calcRestless,
-      //           quiet: calcQuiet,
-      //           timeline: timelineArray
-      //         });
-      //
-      //         finalExportText = JSON.stringify(aiEpochs, null, 2);
-      //         exportFileName = `sleep_analysis_${Date.now()}.json`;
-      //
-      //       } catch (aiError) {
-      //         console.error("AI Analysis Failed:", aiError);
-      //         Alert.alert("Analysis Error", "The AI failed to process the data. Exporting raw CSV as a fallback.");
-      //
-      //         // Fallback: If the API fails for some reason, export the CSV so the data isn't lost
-      //         // we can still have csv data and we can feed this into ai later
-      //         finalExportText = csvString;
-      //         exportFileName = `fallback_raw_data_${Date.now()}.csv`;
-      //       }
 
       setIsRecording(false);
       setIsBlackout(false);
