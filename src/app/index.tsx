@@ -8,13 +8,12 @@ import React, { useRef, useState } from 'react';
 import { Alert, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Save to disk every 30 rows so a crash overnight only loses a few seconds
+// save every 30 rows so a crash doesn't lose much
 const FLUSH_EVERY_ROWS = 30;
 
-// Event column is empty except on rows where the user logged a wake-up
+// Event is empty except on rows where a wake-up was logged
 const CSV_HEADER = 'Timestamp,Accel_X,Accel_Y,Accel_Z,Gyro_X,Gyro_Y,Gyro_Z,dB,Event';
 
-// seconds -> "2h 34m"
 const formatDuration = (totalSeconds: number): string => {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -26,28 +25,8 @@ const formatClock = (isoString: string): string => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-// old groq labeling helper - we do labeling in python on the desktop now,
-// keeping this here in case we ever want it back
-//
-// // helper function to handle AI rate limiting
-// const fetchWithRetry = async (endpoint: string, options: any, maxRetries = 3) => {
-//   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-//     const response = await fetch(endpoint, options);
-//
-//     if (response.status === 429) {
-//       console.warn(`Rate limited! Retrying in ${attempt * 15} seconds...`);
-//       await new Promise(resolve => setTimeout(resolve, attempt * 15000));
-//       continue;
-//     }
-//
-//     if (!response.ok) throw new Error(`API failed with status: ${response.status}`);
-//     return response;
-//   }
-//   throw new Error("Max retries reached. Server is too busy.");
-// };
-
 export default function App() {
-  // prevents the phone screen from locking during the overnight session
+  // keep the screen on all night
   useKeepAwake();
 
   const [participantId, setParticipantId] = useState<string>('');
@@ -56,11 +35,11 @@ export default function App() {
   const [isBlackout, setIsBlackout] = useState<boolean>(false);
   const [isFinishing, setIsFinishing] = useState<boolean>(false);
 
-  // tips screen shown after pressing Initiate
+  // tips screen
   const [showTips, setShowTips] = useState<boolean>(false);
   const [hideTips, setHideTips] = useState<boolean>(false);
 
-  // notes screen shown after stopping
+  // notes screen
   const [showNotes, setShowNotes] = useState<boolean>(false);
   const [sessionNotes, setSessionNotes] = useState<string>('');
 
@@ -88,27 +67,24 @@ export default function App() {
   const rowCount = useRef<number>(0);
   const fileUri = useRef<string | null>(null);
 
-  // When the user logs a wake-up we hold the label here, and the next data row
-  // picks it up and writes it into the Event column
+  // holds a wake-up label until the next row writes it
   const pendingEvent = useRef<string>('');
 
   const audioRecordingRef = useRef<Audio.Recording | null>(null);
   const accelSubscriptionRef = useRef<{ remove: () => void } | null>(null);
   const gyroSubscriptionRef = useRef<{ remove: () => void } | null>(null);
 
-  // writes the whole log (header + all rows) to the file
+  // writes the whole log to the file
   const saveToPhone = async () => {
     if (fileUri.current === null) {
       return;
     }
-    const fs = FileSystem as any;
     const allText = dataLog.current.join('\n');
-    await fs.writeAsStringAsync(fileUri.current, allText, { encoding: 'utf8' });
-    rowsSinceFlush.current = 0;
+    await FileSystem.writeAsStringAsync(fileUri.current, allText, { encoding: 'utf8' });
   };
 
   const saveWakeUp = (label: string) => {
-    // commas and line breaks would break the csv columns, swap them out
+    // commas and line breaks would break the csv columns
     const trimmedLabel = label.trim();
     const cleanLabel = trimmedLabel.replace(/[,\r\n]+/g, ';');
 
@@ -116,9 +92,8 @@ export default function App() {
       return;
     }
 
-    // next data row will pick this up and put it in the Event column
     pendingEvent.current = cleanLabel;
-    setWakeUpCount(wakeUpCount + 1);
+    setWakeUpCount(count => count + 1);
     setLogNote('');
     setShowLogMenu(false);
   };
@@ -137,16 +112,14 @@ export default function App() {
         return;
       }
 
-      // Lines starting with # are session info, pandas skips them with
-      // read_csv(comment='#')
+      // # lines are session info, pandas can skip them
       const startedAt = new Date().toISOString();
       startedAtRef.current = startedAt;
       const safeId = cleanId.replace(/[^a-zA-Z0-9_-]/g, '_');
       const safeTime = startedAt.replace(/[:.]/g, '-');
       const fileName = 'sleepscope_' + safeId + '_' + safeTime + '.csv';
 
-      const fs = FileSystem as any;
-      const safeDir = fs.documentDirectory || 'file:///tmp/';
+      const safeDir = FileSystem.documentDirectory || 'file:///tmp/';
       fileUri.current = safeDir + fileName;
 
       dataLog.current = [
@@ -161,7 +134,7 @@ export default function App() {
       setSessionNotes('');
       setLastSession(null);
 
-      // write the file right away so it exists from the start
+      // write it once so the file exists from the start
       await saveToPhone();
 
       await Audio.setAudioModeAsync({
@@ -185,26 +158,23 @@ export default function App() {
         latestGyro.current = data;
       });
 
-      // this callback fires every second and is what writes each row
+      // fires every second, writes one row
       recording.setProgressUpdateInterval(1000);
       recording.setOnRecordingStatusUpdate((status: Audio.RecordingStatus) => {
-        const s = status as any;
-
         let currentDb = -160.0;
-        if (typeof s.metering === 'number') {
-          currentDb = s.metering;
+        if (typeof status.metering === 'number') {
+          currentDb = status.metering;
         }
 
         const timestamp = new Date().toISOString();
         const a = latestAccel.current;
         const g = latestGyro.current;
 
-        // grab any pending wake-up label and clear it so it only lands on this row
+        // take the pending label so it only lands on this row
         const eventLabel = pendingEvent.current;
         pendingEvent.current = '';
 
-        // Raw data only, no math on the phone - python side handles the
-        // 30 second grouping later
+        // raw data only, python does the math later
         const row =
           timestamp + ',' +
           a.x.toFixed(4) + ',' + a.y.toFixed(4) + ',' + a.z.toFixed(4) + ',' +
@@ -215,7 +185,8 @@ export default function App() {
 
         rowsSinceFlush.current = rowsSinceFlush.current + 1;
         if (rowsSinceFlush.current >= FLUSH_EVERY_ROWS) {
-          // don't await, saving in the background so we don't block the callback
+          // reset before saving, otherwise the next tick starts a second write
+          rowsSinceFlush.current = 0;
           saveToPhone().catch(err => console.warn('Save failed:', err));
         }
       });
@@ -231,7 +202,6 @@ export default function App() {
     }
   };
 
-  // show tips first unless the user turned them off
   const handleInitiatePress = () => {
     if (hideTips) {
       startTracking();
@@ -267,106 +237,17 @@ export default function App() {
         await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
       }
 
-      // final save to catch the last rows
+      // last save, catches the rows since the previous flush
       await saveToPhone();
-
-      // old groq post-processing that used to label each row here. Moved to the
-      // python desktop side, keeping the original code for reference
-      //
-      //       const csvString = dataLog.current.join('\n');
-      //       let finalExportText = "";
-      //       let exportFileName = "";
-      //
-      //       // AI post-processing
-      //       const API_KEY = process.env.EXPO_PUBLIC_GROQ_KEY;
-      //       const endpoint = `https://api.groq.com/openai/v1/chat/completions`;
-      //
-      //       try {
-      //         const aiResponse = await fetchWithRetry(endpoint, {
-      //           method: 'POST',
-      //           headers: {
-      //             'Content-Type': 'application/json',
-      //             'Authorization': `Bearer ${API_KEY}`
-      //           },
-      //           body: JSON.stringify({
-      //             model: "llama-3.3-70b-versatile",
-      //             response_format: { type: "json_object" },
-      //             messages: [
-      //               {
-      //                 role: "system",
-      //                 content: "You are a behavioral sleep classifier. The input is CSV telemetry from a smartphone. Each row represents one independent 2-minute epoch. Classify EVERY row independently as exactly one of: Quiet Sleep, Restless, or Awake.\n\nGuidelines:\n- Quiet Sleep: very little movement across all axes (low Delta XYZ) and peak audio below -45 dBFS.\n- Restless: moderate movement variance, occasional movement spikes, or isolated audio events between -45 and -30 dBFS.\n- Awake: high movement across multiple axes, very high movement variance, or peak audio louder than -30 dBFS.\n\nRules:\n- Use only the telemetry provided.\n- Do not infer REM sleep, deep sleep, light sleep, or medical conditions.\n- Preserve the timestamps exactly as provided.\n- Return one classification for every input row.\n- Do not omit or merge rows.\n\nReturn ONLY a JSON object containing a single key called 'epochs' that holds an array of objects. Each object must have 'timestamp' and 'state'."
-      //               },
-      //               {
-      //                 role: "user",
-      //                 content: csvString
-      //               }
-      //             ]
-      //           })
-      //         });
-      //
-      //         const jsonResponse = await aiResponse.json();
-      //
-      //         const rawAiText = jsonResponse.choices[0].message.content;
-      //         const parsedData = JSON.parse(rawAiText);
-      //         const aiEpochs = parsedData.epochs;
-      //
-      //         // multiply array length by 120 seconds to get total duration
-      //         let calcTotal = aiEpochs.length * 120;
-      //         let calcAwake = 0;
-      //         let calcRestless = 0;
-      //         let calcQuiet = 0;
-      //         const timelineArray: { time: string; state: string }[] = [];
-      //         let lastState = null;
-      //
-      //         for (const epoch of aiEpochs) {
-      //           if (epoch.state === 'Awake') calcAwake += 120;
-      //           else if (epoch.state === 'Restless') calcRestless += 120;
-      //           else if (epoch.state === 'Quiet Sleep') calcQuiet += 120;
-      //
-      //           // build a merged timeline for the UI (only log when the state changes)
-      //           if (epoch.state !== lastState) {
-      //             const timeObj = new Date(epoch.timestamp);
-      //             const formattedTime = timeObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      //
-      //             timelineArray.push({
-      //               time: formattedTime,
-      //               state: epoch.state
-      //             });
-      //             lastState = epoch.state;
-      //           }
-      //         }
-      //
-      //         setSummary({
-      //           total: calcTotal,
-      //           awake: calcAwake,
-      //           restless: calcRestless,
-      //           quiet: calcQuiet,
-      //           timeline: timelineArray
-      //         });
-      //
-      //         finalExportText = JSON.stringify(aiEpochs, null, 2);
-      //         exportFileName = `sleep_analysis_${Date.now()}.json`;
-      //
-      //       } catch (aiError) {
-      //         console.error("AI Analysis Failed:", aiError);
-      //         Alert.alert("Analysis Error", "The AI failed to process the data. Exporting raw CSV as a fallback.");
-      //
-      //         // Fallback: If the API fails for some reason, export the CSV so the data isn't lost
-      //         // we can still have csv data and we can feed this into ai later
-      //         finalExportText = csvString;
-      //         exportFileName = `fallback_raw_data_${Date.now()}.csv`;
-      //       }
 
       setIsRecording(false);
       setIsBlackout(false);
 
-      // We only needed the audio for the dB metering, delete the actual sound file
+      // only needed the dB numbers, not the audio itself
       if (audioUri) {
-        const fs = FileSystem as any;
-        await fs.deleteAsync(audioUri, { idempotent: true });
+        await FileSystem.deleteAsync(audioUri, { idempotent: true });
       }
 
-      // notes screen comes before the export
       setShowNotes(true);
       setIsFinishing(false);
     } catch (error) {
@@ -378,8 +259,7 @@ export default function App() {
 
   const saveNotesAndExport = async () => {
     try {
-      // note has to stay on one line, a second line wouldn't start with #
-      // and would look like a data row
+      // keep it on one line, otherwise it looks like a data row
       const trimmedNote = sessionNotes.trim();
       const note = trimmedNote.replace(/[\r\n]+/g, ' ');
 
@@ -390,9 +270,8 @@ export default function App() {
 
       const savedFileUri = fileUri.current;
       if (savedFileUri) {
-        const sharing = Sharing as any;
-        if (await sharing.isAvailableAsync()) {
-          await sharing.shareAsync(savedFileUri);
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(savedFileUri);
         } else {
           Alert.alert('Saved', 'File saved to: ' + savedFileUri);
         }
@@ -400,7 +279,7 @@ export default function App() {
         const parts = savedFileUri.split('/');
         const shortName = parts[parts.length - 1];
 
-        // one row per second, so row count = seconds recorded
+        // one row per second, so rows = seconds
         setLastSession({
           durationSeconds: rowCount.current,
           wakeUps: wakeUpCount,
@@ -511,8 +390,7 @@ export default function App() {
     );
   }
 
-  // Notes screen. Kept near the top of the screen so the keyboard doesn't
-  // cover the box, tapping outside closes the keyboard
+  // notes screen, sits up top so the keyboard doesn't cover the box
   if (showNotes) {
     return (
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
